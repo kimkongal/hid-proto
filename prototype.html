@@ -473,11 +473,6 @@
     <div class="chat-scroll" id="chatScroll"></div>
 
     <div class="composer">
-      <div class="quick-actions" id="quickActions">
-        <button data-prompt="빈티지 의류 브랜드의 인스타그램 광고 카피 5개 써줘">광고 카피 5개</button>
-        <button data-prompt="신상품 입고 알림 카피 다시 써줘">신상품 카피</button>
-        <button data-prompt="가을 시즌 콜렉션 카피 3개 부탁해">가을 콜렉션</button>
-      </div>
       <div class="composer-inner">
         <textarea id="composer" placeholder="요청을 입력하세요…" rows="1"></textarea>
         <button id="sendBtn">전송</button>
@@ -545,6 +540,7 @@
    Constants
    ============================================================ */
 const STORAGE_KEY = "taste_ai_v2";
+const STATE_KEY = "taste_ai_state_v1";
 const DIRECTION_LABEL = {
   poetic: "시적/감성 표현",
   direct_cta: "직설적 CTA",
@@ -613,6 +609,28 @@ function loadSettings() {
 function saveSettings() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.settings));
   document.getElementById('modelTag').textContent = state.settings.model;
+}
+
+function loadPersistedState() {
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (Array.isArray(saved.messages)) {
+      state.messages = saved.messages.filter(m => m.role !== 'loading');
+    }
+    if (Array.isArray(saved.preferences)) {
+      state.preferences = saved.preferences;
+    }
+  } catch (e) {}
+}
+function persistState() {
+  try {
+    localStorage.setItem(STATE_KEY, JSON.stringify({
+      messages: state.messages.filter(m => m.role !== 'loading'),
+      preferences: state.preferences
+    }));
+  } catch (e) {}
 }
 
 /* ============================================================
@@ -894,6 +912,7 @@ function renderPrefs() {
 function render() {
   renderChat();
   renderPrefs();
+  persistState();
 }
 
 /* ============================================================
@@ -947,10 +966,6 @@ document.getElementById('composer').addEventListener('keydown', (e) => {
     document.getElementById('sendBtn').click();
   }
 });
-document.querySelectorAll('.quick-actions button').forEach(btn => {
-  btn.addEventListener('click', () => { sendMessage(btn.dataset.prompt); });
-});
-
 /* ============================================================
    Tabs / pref removal / reset
    ============================================================ */
@@ -1109,6 +1124,7 @@ document.addEventListener('mousedown', (e) => {
    Init
    ============================================================ */
 saveSettings();
+loadPersistedState();
 render();
 if (!state.settings.apiKey) {
   // First-time setup
